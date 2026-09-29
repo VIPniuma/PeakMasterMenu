@@ -1,0 +1,10 @@
+<!--
+  这个文件存在的唯一目的是「截断」MSBuild 向上查找 Directory.Build.props 的过程。
+
+  安装器是一个独立的 .NET Framework WinForms 程序，绝对不能继承仓库根目录那套
+  BepInEx / ThunderPipe / Unity 程序集的构建配置（那些配置会让 net48 项目去引用
+  Unity 的 dll，直接编译失败）。MSBuild 找到最近的 Directory.Build.props 后就不再
+  往上找，所以在这里放一个空的即可。
+-->
+<Project>
+</Project>

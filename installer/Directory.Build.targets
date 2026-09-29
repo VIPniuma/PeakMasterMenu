@@ -1,0 +1,7 @@
+<!--
+  同目录的 Directory.Build.props 一样，这个文件用于截断仓库根目录的
+  Directory.Build.targets（里面有 ThunderPipe 打包 / BepInEx 依赖注入 / 构建后
+  自动部署等逻辑，对安装器毫无意义且会造成干扰）。
+-->
+<Project>
+</Project>

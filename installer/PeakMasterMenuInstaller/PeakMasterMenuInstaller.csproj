@@ -1,0 +1,84 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    独立的一键安装器。
+
+    目标框架刻意选择 .NET Framework 4.8 而不是 net8/net10：
+      * Win10 1903+ / Win11 系统自带该运行时，分发时只需要给一个几百 KB 的 exe，
+        别人双击就能用，不用先装 .NET 桌面运行时。
+      * WinForms 直接可用，不需要额外打包体积。
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <RootNamespace>PeakMasterMenu.Installer</RootNamespace>
+    <AssemblyName>PeakMasterMenuInstaller</AssemblyName>
+    <AssemblyTitle>PeakMasterMenu 安装器</AssemblyTitle>
+    <Product>PeakMasterMenu Installer</Product>
+    <Company>PeakModder</Company>
+    <Description>一键为 PEAK 安装 BepInEx 前置与 PeakMasterMenu。</Description>
+    <Version>1.0.0</Version>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!-- 让 IDE 里的 Windows Forms 设计器正常识别这个项目 -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
+
+  <!-- 发布版不生成 pdb，输出目录干净得只剩 exe + config -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- 仓库里的 Mod 工程 -->
+    <ModProjectPath>$(MSBuildThisFileDirectory)..\..\src\PeakMasterMenu\PeakMasterMenu.csproj</ModProjectPath>
+    <ModConfiguration Condition="'$(ModConfiguration)' == ''">Release</ModConfiguration>
+    <!-- 构建出来的 Mod dll（artifacts 输出目录的小写配置名） -->
+    <ModAssemblyFolder Condition="'$(Configuration)' == 'Release'">release</ModAssemblyFolder>
+    <ModAssemblyFolder Condition="'$(Configuration)' != 'Release'">debug</ModAssemblyFolder>
+    <ModAssemblyPath Condition="'$(ModAssemblyPath)' == ''">$(MSBuildThisFileDirectory)..\..\artifacts\bin\PeakMasterMenu\$(ModAssemblyFolder)\PeakModder.PeakMasterMenu.dll</ModAssemblyPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Runtime.Serialization" />
+  </ItemGroup>
+
+  <!--
+    把 Mod 的 dll 作为「内嵌资源」打进安装器 exe，这样发给别人时只要给一个 exe 就够了。
+    默认会先顺手构建一遍 Mod 工程，保证嵌进去的一定是最新产物；
+    调试安装器本身时可以加 -p:SkipModBuild=true 跳过，改成直接读取磁盘上已有的 dll。
+  -->
+  <Target Name="EmbedModPayloadByBuilding" BeforeTargets="PrepareForBuild" Condition="'$(SkipModBuild)' != 'true'">
+    <Message Text="先构建 Mod 工程以获取最新的 dll：$(ModProjectPath)" Importance="high" />
+    <MSBuild
+      Projects="$(ModProjectPath)"
+      Targets="Build"
+      BuildInParallel="false"
+      Properties="Configuration=$(ModConfiguration)"
+    >
+      <Output TaskParameter="TargetOutputs" ItemName="ModAssemblyOutput" />
+    </MSBuild>
+    <ItemGroup>
+      <EmbeddedResource Include="@(ModAssemblyOutput)" LogicalName="PeakMasterMenu.Payload.dll" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="EmbedModPayloadFromDisk" BeforeTargets="PrepareForBuild" Condition="'$(SkipModBuild)' == 'true'">
+    <Error
+      Text="SkipModBuild=true 时找不到 Mod dll：$(ModAssemblyPath)。请先构建 Mod 工程。"
+      Condition="!Exists('$(ModAssemblyPath)')"
+    />
+    <ItemGroup>
+      <EmbeddedResource Include="$(ModAssemblyPath)" LogicalName="PeakMasterMenu.Payload.dll" />
+    </ItemGroup>
+  </Target>
+
+</Project>
